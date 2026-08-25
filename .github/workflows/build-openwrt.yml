@@ -131,27 +131,19 @@ jobs:
           'CONFIG_PACKAGE_kmod-veth=y'
           'CONFIG_PACKAGE_v2ray-geoip=y'
           'CONFIG_PACKAGE_v2ray-geosite=y'
-          'CONFIG_KERNEL_BPF=y'
-          'CONFIG_KERNEL_BPF_SYSCALL=y'
-          'CONFIG_KERNEL_BPF_JIT=y'
-          'CONFIG_KERNEL_CGROUPS=y'
-          'CONFIG_KERNEL_KPROBES=y'
-          'CONFIG_KERNEL_NET_INGRESS=y'
-          'CONFIG_KERNEL_NET_EGRESS=y'
-          'CONFIG_KERNEL_NET_SCH_INGRESS=y'
-          'CONFIG_KERNEL_NET_CLS_BPF=y'
-          'CONFIG_KERNEL_NET_ACT_BPF=y'
-          'CONFIG_KERNEL_BPF_STREAM_PARSER=y'
-          'CONFIG_KERNEL_DEBUG_INFO_BTF=y'
-          'CONFIG_KERNEL_KPROBE_EVENTS=y'
-          'CONFIG_KERNEL_BPF_EVENTS=y'
         )
         for item in "${required_config[@]}"; do
           grep -Fxq "$item" .config || {
-            echo "ERROR: defconfig removed or failed to select: $item" >&2
+            echo "ERROR: required package/config was not selected after defconfig: $item" >&2
             exit 1
           }
         done
+
+        grep -E 'CONFIG_(PACKAGE_daed|PACKAGE_luci-app-daede|PACKAGE_vmlinux-btf|DAED_USE_|KERNEL_(DEBUG_INFO_BTF|XDP_SOCKETS|BPF|BPF_SYSCALL|BPF_JIT))' .config || true
+        grep -Eq '^(CONFIG_DAED_USE_KERNEL_BTF|CONFIG_DAED_USE_VMLINUX_BTF)=y$' .config || {
+          echo "ERROR: daed BTF source was not selected after defconfig" >&2
+          exit 1
+        }
 
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
