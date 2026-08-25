@@ -58,7 +58,13 @@ jobs:
         libltdl-dev libmpc-dev libmpfr-dev libncurses5-dev libncursesw5-dev libpython3-dev libreadline-dev \
         libssl-dev libtool lrzsz mkisofs msmtp ninja-build p7zip p7zip-full patch pkgconf python3 \
         python3-pyelftools python3-setuptools qemu-utils rsync scons squashfs-tools subversion swig texinfo \
+        clang llvm \
         uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev
+        clang --version
+        llc --version
+        llvm-dis --version
+        opt --version
+        llvm-strip --version
         sudo -E apt-get -qq autoremove --purge
         sudo -E apt-get -qq clean
         sudo timedatectl set-timezone "$TZ"
@@ -107,6 +113,7 @@ jobs:
           'CONFIG_TARGET_x86_64=y'
           'CONFIG_TARGET_x86_64_DEVICE_generic=y'
           'CONFIG_TARGET_ROOTFS_PARTSIZE=2048'
+          'CONFIG_DEVEL=y'
           'CONFIG_LUCI_LANG_zh_Hans=y'
           'CONFIG_PACKAGE_luci-i18n-base-zh-cn=y'
           'CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y'
@@ -131,6 +138,8 @@ jobs:
           'CONFIG_PACKAGE_kmod-veth=y'
           'CONFIG_PACKAGE_v2ray-geoip=y'
           'CONFIG_PACKAGE_v2ray-geosite=y'
+          'CONFIG_BPF_TOOLCHAIN_HOST=y'
+          'CONFIG_USE_LLVM_HOST=y'
         )
         for item in "${required_config[@]}"; do
           grep -Fxq "$item" .config || {
@@ -139,7 +148,19 @@ jobs:
           }
         done
 
-        grep -E 'CONFIG_(PACKAGE_daed|PACKAGE_luci-app-daede|PACKAGE_vmlinux-btf|DAED_USE_|KERNEL_(DEBUG_INFO_BTF|XDP_SOCKETS|BPF|BPF_SYSCALL|BPF_JIT))' .config || true
+        for tool in clang llc llvm-dis opt llvm-strip; do
+          command -v "$tool" >/dev/null || {
+            echo "ERROR: required LLVM/BPF build tool is missing: $tool" >&2
+            exit 1
+          }
+        done
+        clang_major="$(clang --target=bpfel -dM -E - < /dev/null | awk '/__clang_major__/ {print $3; exit}')"
+        [ "${clang_major:-0}" -ge 12 ] || {
+          echo "ERROR: LLVM/clang version too old for OpenWrt BPF build. Minimum required: 12, found: ${clang_major:-unknown}" >&2
+          exit 1
+        }
+
+        grep -E 'CONFIG_(DEVEL|USE_LLVM_HOST|BPF_TOOLCHAIN_HOST|PACKAGE_daed|PACKAGE_luci-app-daede|PACKAGE_vmlinux-btf|DAED_USE_|KERNEL_(DEBUG_INFO_BTF|XDP_SOCKETS|BPF|BPF_SYSCALL|BPF_JIT))' .config || true
         grep -Eq '^(CONFIG_DAED_USE_KERNEL_BTF|CONFIG_DAED_USE_VMLINUX_BTF)=y$' .config || {
           echo "ERROR: daed BTF source was not selected after defconfig" >&2
           exit 1
