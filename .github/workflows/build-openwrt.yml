@@ -10,7 +10,7 @@ on:
 
 env:
   REPO_URL: https://github.com/openwrt/openwrt
-  REPO_BRANCH: openwrt-23.05  # 修复: 使用正确的分支名称
+  REPO_BRANCH: v25.12.5
   CONFIG_FILE: .config
   DIY_SCRIPT: diy-script.sh
   UPLOAD_BIN_DIR: false
