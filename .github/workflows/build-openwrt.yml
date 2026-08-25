@@ -116,7 +116,6 @@ jobs:
           'CONFIG_PACKAGE_luci-i18n-statistics-zh-cn=y'
           'CONFIG_PACKAGE_kmod-hwmon-coretemp=y'
           'CONFIG_PACKAGE_kmod-hwmon-core=y'
-          'CONFIG_PACKAGE_kmod-thermal=y'
           'CONFIG_PACKAGE_luci-app-statistics=y'
           'CONFIG_PACKAGE_collectd=y'
           'CONFIG_PACKAGE_collectd-mod-cpu=y'
@@ -183,7 +182,6 @@ jobs:
           luci-i18n-statistics-zh-cn \
           kmod-hwmon-coretemp \
           kmod-hwmon-core \
-          kmod-thermal \
           luci-app-statistics \
           collectd \
           collectd-mod-cpu \
@@ -226,7 +224,7 @@ jobs:
 
     - name: 整理文件
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd openwrt/bin/targets/*/*
         rm -rf packages
@@ -242,7 +240,7 @@ jobs:
 
     - name: 生成发布标签
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch release.txt
@@ -259,7 +257,7 @@ jobs:
         echo "- ✅ eBPF 和 BTF 支持 (支持 daed)" >> release.txt
         echo "" >> release.txt
         echo "### 注意事项" >> release.txt
-        echo "- daed 软件包需要手动安装" >> release.txt
+        echo "- daed 和 luci-app-daede 已集成" >> release.txt
         echo "- 默认 IP: 192.168.10.1" >> release.txt
         echo "- 默认密码: password" >> release.txt
         echo "status=success" >> $GITHUB_OUTPUT
@@ -276,7 +274,7 @@ jobs:
 
     - name: 删除旧的 Releases
       uses: dev-drprasad/delete-older-releases@v0.2.1
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: steps.tag.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       with:
         keep_latest: 5
         delete_tags: true
