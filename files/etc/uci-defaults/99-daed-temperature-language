@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# Enable hardware temperature collection and make LuCI default to Simplified Chinese.
+uci -q get luci_statistics.collectd_sensors >/dev/null 2>&1 ||
+	uci -q set luci_statistics.collectd_sensors=statistics
+uci -q set luci_statistics.collectd_sensors.enable='1'
+
+uci -q get luci_statistics.collectd_thermal >/dev/null 2>&1 ||
+	uci -q set luci_statistics.collectd_thermal=statistics
+uci -q set luci_statistics.collectd_thermal.enable='1'
+
+uci -q get luci.main >/dev/null 2>&1 ||
+	uci -q set luci.main=core
+uci -q set luci.main.lang='zh_cn'
+
+uci -q commit luci_statistics
+uci -q commit luci
+exit 0

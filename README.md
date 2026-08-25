@@ -124,13 +124,9 @@ CONFIG_PACKAGE_luci-i18n-example-zh-cn=y
 
 ### 安装 daed 插件
 
-daed 需要从第三方源获取。编辑 `diy-script.sh`，取消注释以下行：
+当前仓库的 GitHub Actions 已经自动集成 `openwrt-daede` feed，并在编译时安装 `daed` 与 `luci-app-daede`。
 
-```bash
-git clone https://github.com/daeuniverse/daed-package.git package/daed
-```
-
-或者手动添加其他 daed 相关的软件源。
+如果你是手动本地编译，才需要自己额外添加对应 feed 或安装 IPK。
 
 ## 📝 配置说明
 
@@ -157,7 +153,7 @@ git clone https://github.com/daeuniverse/daed-package.git package/daed
 
 - 基础系统 (base)
 - 防火墙 (firewall)
-- 软件包管理 (opkg)
+- 软件包管理 (package manager)
 - DDNS
 - UPnP
 - 系统统计 (statistics)

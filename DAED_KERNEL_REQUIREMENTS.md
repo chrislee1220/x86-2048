@@ -120,23 +120,12 @@ bpftool map list
 
 ## daed 软件包安装
 
-daed 本身需要单独安装，因为它不在 OpenWrt 官方源中：
+当前仓库的 GitHub Actions 已经把 `openwrt-daede` feed 集成进编译流程，并在编译时直接安装：
 
-### 方法 1: 使用第三方源
+- `daed`
+- `luci-app-daede`
 
-取消 `diy-script.sh` 中的注释：
-```bash
-git clone https://github.com/daeuniverse/daed-package.git package/daed
-```
-
-### 方法 2: 手动安装 IPK
-
-1. 从 [daed releases](https://github.com/daeuniverse/daed/releases) 下载预编译的 IPK
-2. 通过 LuCI 或 opkg 命令安装
-
-### 方法 3: 使用 immortalwrt 源
-
-immortalwrt 可能包含 daed 软件包，可以添加到 feeds 中。
+如果你改成了本地编译或替换 feed，才需要自己手动处理 daed 软件包来源。
 
 ## 运行时依赖
 
@@ -213,7 +202,7 @@ mount -t cgroup2 none /sys/fs/cgroup
 ✅ 追踪和调试支持
 
 主要还需要的是：
-1. **安装 daed 软件包本身**（需要从第三方源获取）
+1. **确认编译产物里已经包含 daed**
 2. **验证运行时环境**（按照上述步骤验证）
 3. **配置 daed 服务**（根据 daed 文档进行配置）
 

@@ -68,18 +68,28 @@ jobs:
     - name: 克隆源代码
       working-directory: /workdir
       run: |
+        set -Eeuo pipefail
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
+        git clone --depth=1 --branch main https://github.com/kenzok8/openwrt-daede.git daede-feed
+        test -f daede-feed/daed/Makefile
+        test -f daede-feed/luci-app-daede/Makefile
+        printf 'src-link daede %s\n' "/workdir/daede-feed" >> openwrt/feeds.conf.default
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 更新和安装 feeds
       run: |
+        set -Eeuo pipefail
         cd openwrt
         ./scripts/feeds update -a
         ./scripts/feeds install -a
+        ./scripts/feeds uninstall daed || true
+        ./scripts/feeds uninstall luci-app-daede || true
+        ./scripts/feeds install -f -p daede daed luci-app-daede
 
     - name: 加载自定义配置
       run: |
+        set -Eeuo pipefail
         [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_SCRIPT
@@ -89,8 +99,61 @@ jobs:
     - name: 下载软件包
       id: package
       run: |
+        set -Eeuo pipefail
         cd openwrt
         make defconfig
+
+        required_config=(
+          'CONFIG_TARGET_x86_64=y'
+          'CONFIG_TARGET_x86_64_DEVICE_generic=y'
+          'CONFIG_TARGET_ROOTFS_PARTSIZE=2048'
+          'CONFIG_LUCI_LANG_zh_Hans=y'
+          'CONFIG_PACKAGE_luci-i18n-base-zh-cn=y'
+          'CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y'
+          'CONFIG_PACKAGE_luci-i18n-package-manager-zh-cn=y'
+          'CONFIG_PACKAGE_luci-i18n-ddns-zh-cn=y'
+          'CONFIG_PACKAGE_luci-i18n-upnp-zh-cn=y'
+          'CONFIG_PACKAGE_luci-i18n-statistics-zh-cn=y'
+          'CONFIG_PACKAGE_kmod-hwmon-coretemp=y'
+          'CONFIG_PACKAGE_kmod-hwmon-core=y'
+          'CONFIG_PACKAGE_kmod-thermal=y'
+          'CONFIG_PACKAGE_luci-app-statistics=y'
+          'CONFIG_PACKAGE_collectd=y'
+          'CONFIG_PACKAGE_collectd-mod-cpu=y'
+          'CONFIG_PACKAGE_collectd-mod-sensors=y'
+          'CONFIG_PACKAGE_collectd-mod-thermal=y'
+          'CONFIG_PACKAGE_ca-bundle=y'
+          'CONFIG_PACKAGE_ca-certificates=y'
+          'CONFIG_PACKAGE_daed=y'
+          'CONFIG_PACKAGE_luci-app-daede=y'
+          'CONFIG_PACKAGE_luci-app-daede_daed=y'
+          'CONFIG_PACKAGE_kmod-sched-core=y'
+          'CONFIG_PACKAGE_kmod-sched-bpf=y'
+          'CONFIG_PACKAGE_kmod-veth=y'
+          'CONFIG_PACKAGE_v2ray-geoip=y'
+          'CONFIG_PACKAGE_v2ray-geosite=y'
+          'CONFIG_KERNEL_BPF=y'
+          'CONFIG_KERNEL_BPF_SYSCALL=y'
+          'CONFIG_KERNEL_BPF_JIT=y'
+          'CONFIG_KERNEL_CGROUPS=y'
+          'CONFIG_KERNEL_KPROBES=y'
+          'CONFIG_KERNEL_NET_INGRESS=y'
+          'CONFIG_KERNEL_NET_EGRESS=y'
+          'CONFIG_KERNEL_NET_SCH_INGRESS=y'
+          'CONFIG_KERNEL_NET_CLS_BPF=y'
+          'CONFIG_KERNEL_NET_ACT_BPF=y'
+          'CONFIG_KERNEL_BPF_STREAM_PARSER=y'
+          'CONFIG_KERNEL_DEBUG_INFO_BTF=y'
+          'CONFIG_KERNEL_KPROBE_EVENTS=y'
+          'CONFIG_KERNEL_BPF_EVENTS=y'
+        )
+        for item in "${required_config[@]}"; do
+          grep -Fxq "$item" .config || {
+            echo "ERROR: defconfig removed or failed to select: $item" >&2
+            exit 1
+          }
+        done
+
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -98,6 +161,7 @@ jobs:
     - name: 编译固件
       id: compile
       run: |
+        set -Eeuo pipefail
         cd openwrt
         echo -e "$(nproc) thread compile"
         make -j$(nproc) || make -j1 || make -j1 V=s
@@ -105,6 +169,39 @@ jobs:
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
+
+        manifest="$(find bin/targets/x86/64 -maxdepth 1 -type f -name '*.manifest' | head -n 1)"
+        test -n "$manifest"
+        for package in \
+          daed \
+          luci-app-daede \
+          luci-i18n-base-zh-cn \
+          luci-i18n-firewall-zh-cn \
+          luci-i18n-package-manager-zh-cn \
+          luci-i18n-ddns-zh-cn \
+          luci-i18n-upnp-zh-cn \
+          luci-i18n-statistics-zh-cn \
+          kmod-hwmon-coretemp \
+          kmod-hwmon-core \
+          kmod-thermal \
+          luci-app-statistics \
+          collectd \
+          collectd-mod-cpu \
+          collectd-mod-sensors \
+          collectd-mod-thermal \
+          ca-bundle \
+          ca-certificates \
+          kmod-sched-core \
+          kmod-sched-bpf \
+          kmod-veth \
+          v2ray-geoip \
+          v2ray-geosite; do
+          grep -Eq "(^|[[:space:]])${package}([[:space:]]|$)" "$manifest" || {
+            echo "ERROR: final firmware manifest is missing: $package" >&2
+            exit 1
+          }
+        done
+        echo "Final manifest verified: $manifest"
 
     - name: 检查空间使用情况
       if: (!cancelled())
