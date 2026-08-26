@@ -8,6 +8,10 @@ on:
   # schedule:
   #   - cron: '0 2 * * 0'  # 每周日凌晨2点自动编译
 
+permissions:
+  contents: write
+  actions: write
+
 env:
   REPO_URL: https://github.com/openwrt/openwrt
   REPO_BRANCH: v25.12.5
