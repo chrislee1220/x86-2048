@@ -79,6 +79,7 @@ jobs:
         test -f daede-feed/daed/Makefile
         test -f daede-feed/luci-app-daede/Makefile
         printf 'src-link daede %s\n' "/workdir/daede-feed" >> openwrt/feeds.conf.default
+        rm -rf "$GITHUB_WORKSPACE/openwrt"
         ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: 更新和安装 feeds
