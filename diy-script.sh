@@ -28,8 +28,34 @@ fi
 # 修改默认时区
 if [ -f package/base-files/files/bin/config_generate ]; then
     echo "修改默认时区..."
-    sed -i "s/'UTC'/'CST-8'/g" package/base-files/files/bin/config_generate
-    echo "✓ 时区已修改为 CST-8"
+    sed -i \
+        -e "s/option timezone 'UTC'/option timezone 'CST-8'/" \
+        -e "s/option zonename 'UTC'/option zonename 'Asia\\/Shanghai'/" \
+        package/base-files/files/bin/config_generate
+    echo "✓ 时区已修改为 CST-8 / Asia/Shanghai"
+fi
+
+# luci-app-daede is the LuCI package name, but the installed backend is daed.
+# Keep package/config paths unchanged and only adjust visible LuCI labels.
+DAEDE_MENU="package/feeds/daede/luci-app-daede/root/usr/share/luci/menu.d/luci-app-daede.json"
+DAEDE_DAED_VIEW="package/feeds/daede/luci-app-daede/htdocs/luci-static/resources/view/daede/daed.js"
+for po in \
+    package/feeds/daede/luci-app-daede/po/zh-cn/daede.po \
+    package/feeds/daede/luci-app-daede/po/zh_Hans/daede.po \
+    package/feeds/daede/luci-app-daede/po/templates/daede.pot; do
+    [ -f "$po" ] || continue
+    sed -i \
+        -e 's/msgid "daede Settings"/msgid "daed Settings"/g' \
+        -e 's/msgstr "daede 设置"/msgstr "daed 设置"/g' \
+        "$po"
+done
+if [ -f "$DAEDE_MENU" ]; then
+    sed -i 's/"title": "daede"/"title": "daed"/' "$DAEDE_MENU"
+    echo "✓ LuCI 菜单显示名称已改为 daed"
+fi
+if [ -f "$DAEDE_DAED_VIEW" ]; then
+    sed -i "s/_('daede Settings')/_('daed Settings')/" "$DAEDE_DAED_VIEW"
+    echo "✓ daed 设置页标题已改为 daed"
 fi
 
 # 添加额外的软件源（可选 - daed 支持）
@@ -92,7 +118,7 @@ echo ""
 echo "配置摘要:"
 echo "- 默认 IP: 192.168.10.1"
 echo "- 主机名: OpenWrt-X86"
-echo "- 时区: CST-8 (中国标准时间)"
+echo "- 时区: CST-8 / Asia/Shanghai (中国标准时间)"
 echo "- eBPF/BTF 支持: 已启用"
 echo "- daed 软件包: 已由 GitHub Actions feed 集成"
 echo ""
