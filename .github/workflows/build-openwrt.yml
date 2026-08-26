@@ -2,11 +2,6 @@ name: Build OpenWrt x86_64
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  # schedule:
-  #   - cron: '0 2 * * 0'  # 每周日凌晨2点自动编译
 
 permissions:
   contents: write
@@ -19,7 +14,6 @@ env:
   DIY_SCRIPT: diy-script.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
-  UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
 
 jobs:
@@ -137,6 +131,7 @@ jobs:
           'CONFIG_PACKAGE_daed=y'
           'CONFIG_PACKAGE_luci-app-daede=y'
           'CONFIG_PACKAGE_luci-app-daede_daed=y'
+          'CONFIG_PACKAGE_kmod-tun=y'
           'CONFIG_PACKAGE_kmod-sched-core=y'
           'CONFIG_PACKAGE_kmod-sched-bpf=y'
           'CONFIG_PACKAGE_kmod-veth=y'
@@ -206,6 +201,7 @@ jobs:
           collectd-mod-thermal \
           ca-bundle \
           ca-certificates \
+          kmod-tun \
           kmod-sched-core \
           kmod-sched-bpf \
           kmod-veth \
@@ -254,52 +250,3 @@ jobs:
       with:
         name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE }}
-
-    - name: 生成发布标签
-      id: tag
-      if: steps.organize.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
-      run: |
-        echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
-        touch release.txt
-        echo "## OpenWrt x86_64 固件" >> release.txt
-        echo "### 版本信息" >> release.txt
-        echo "- 源码分支: ${{ env.REPO_BRANCH }}" >> release.txt
-        echo "- 编译时间: $(date +'%Y-%m-%d %H:%M:%S')" >> release.txt
-        echo "- 编译机器: $(uname -m)" >> release.txt
-        echo "" >> release.txt
-        echo "### 功能特性" >> release.txt
-        echo "- ✅ 存储空间扩容至 2GB" >> release.txt
-        echo "- ✅ 中文语言包支持" >> release.txt
-        echo "- ✅ CPU 温度监控" >> release.txt
-        echo "- ✅ eBPF 和 BTF 支持 (支持 daed)" >> release.txt
-        echo "" >> release.txt
-        echo "### 注意事项" >> release.txt
-        echo "- daed 和 luci-app-daede 已集成" >> release.txt
-        echo "- 默认 IP: 192.168.10.1" >> release.txt
-        echo "- 默认密码: password" >> release.txt
-        echo "status=success" >> $GITHUB_OUTPUT
-
-    - name: 上传固件到 release
-      uses: softprops/action-gh-release@v1
-      if: steps.tag.outputs.status == 'success' && !cancelled()
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
-        body_path: release.txt
-        files: ${{ env.FIRMWARE }}/*
-
-    - name: 删除旧的 Releases
-      uses: dev-drprasad/delete-older-releases@v0.2.1
-      if: steps.tag.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        keep_latest: 5
-        delete_tags: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    - name: 删除旧的 workflow 运行记录
-      uses: Mattraks/delete-workflow-runs@v2
-      with:
-        retain_days: 1
-        keep_minimum_runs: 3

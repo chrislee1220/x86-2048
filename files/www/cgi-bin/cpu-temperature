@@ -1,0 +1,15 @@
+#!/bin/sh
+
+for temp in /sys/class/thermal/thermal_zone1/temp /sys/class/thermal/thermal_zone0/temp; do
+	[ -r "$temp" ] || continue
+	raw="$(cat "$temp" 2>/dev/null)"
+	case "$raw" in
+		''|*[!0-9-]*) continue ;;
+	esac
+
+	awk "BEGIN { printf \"%.1f °C\\n\", $raw / 1000 }"
+	exit 0
+done
+
+echo "?"
+exit 0
