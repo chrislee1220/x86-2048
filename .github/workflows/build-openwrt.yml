@@ -234,7 +234,7 @@ jobs:
           kmod-veth \
           v2ray-geoip \
           v2ray-geosite; do
-          grep -Eq "(^|[[:space:]])${package}([[:space:]]|$)" "$manifest" || {
+          grep -Eq "^${package}([0-9]+)?[[:space:]]-" "$manifest" || {
             echo "ERROR: final firmware manifest is missing: $package" >&2
             exit 1
           }
